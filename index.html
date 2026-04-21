@@ -3,276 +3,114 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ecommerce -GSTR Workings converter | Glassmorphism Edition</title>
+<title>GSTR-1 Workings Generator</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-
-  :root {
-    --primary: #2D3436;
-    --accent: #00b894;
-    --accent-glow: rgba(0, 184, 148, 0.3);
-    --glass: rgba(255, 255, 255, 0.7);
-    --glass-border: rgba(255, 255, 255, 0.4);
-    --text-main: #2d3436;
-    --text-dim: #636e72;
-    --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    --shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    background: #eef2f7;
-    background-image: 
-        radial-gradient(at 0% 0%, rgba(0, 184, 148, 0.1) 0, transparent 50%), 
-        radial-gradient(at 100% 100%, rgba(9, 132, 227, 0.1) 0, transparent 50%);
-    color: var(--text-main);
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    padding: 40px 20px;
-  }
-
-  .container {
-    width: 100%;
-    max-width: 900px;
-    z-index: 1;
-  }
-
-  /* --- Glassmorphism Card Style --- */
-  .glass-card {
-    background: var(--glass);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--glass-border);
-    border-radius: 24px;
-    box-shadow: var(--shadow);
-    padding: 40px;
-    margin-bottom: 24px;
-    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
-  }
-
-  header { text-align: center; margin-bottom: 40px; }
-  header h1 { 
-    font-size: 2.2rem; 
-    font-weight: 800; 
-    letter-spacing: -1px; 
-    background: linear-gradient(to right, #2d3436, #00b894);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-  header p { color: var(--text-dim); margin-top: 8px; font-weight: 500; }
-
-  /* --- Stepper --- */
-  .steps {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 40px;
-    padding: 0 20px;
-  }
-  .step {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    position: relative;
-    flex: 1;
-  }
-  .step-num {
-    width: 36px;
-    height: 36px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.9rem;
-    font-weight: 700;
-    background: #fff;
-    border: 1px solid var(--glass-border);
-    transition: all 0.3s ease;
-    z-index: 2;
-  }
-  .step.active .step-num {
-    background: var(--accent);
-    color: white;
-    box-shadow: 0 0 15px var(--accent-glow);
-    transform: translateY(-2px);
-  }
-  .step.done .step-num { background: #dff9fb; color: var(--accent); }
-  .step-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-dim); letter-spacing: 0.5px; }
-  .step.active .step-label { color: var(--accent); }
-
-  /* --- Upload Zone --- */
-  .upload-zone {
-    border: 2px dashed #b2bec3;
-    border-radius: 20px;
-    padding: 60px 20px;
-    text-align: center;
-    cursor: pointer;
-    background: rgba(255,255,255,0.3);
-    transition: all 0.3s ease;
-  }
-  .upload-zone:hover {
-    border-color: var(--accent);
-    background: rgba(0, 184, 148, 0.05);
-    transform: scale(1.01);
-  }
-  .upload-zone svg { stroke: var(--accent); margin-bottom: 16px; }
-  .upload-zone h3 { font-size: 1.1rem; margin-bottom: 8px; }
-  .upload-zone p { font-size: 0.9rem; color: var(--text-dim); }
-
-  /* --- Stats & Tags --- */
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 16px;
-    margin: 24px 0;
-  }
-  .stat-box {
-    background: white;
-    padding: 20px;
-    border-radius: 18px;
-    border: 1px solid var(--glass-border);
-    box-shadow: 0 4px 6px rgba(0,0,0,0.02);
-  }
-  .stat-box .num { font-size: 1.5rem; font-weight: 800; color: var(--accent); font-family: var(--mono); }
-  .stat-box .label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700; margin-top: 4px; }
-
-  .gstin-tag {
-    font-family: var(--mono);
-    font-size: 0.8rem;
-    background: #fff;
-    border: 1px solid var(--glass-border);
-    padding: 6px 12px;
-    border-radius: 8px;
-    color: #2d3436;
-    font-weight: 600;
-  }
-
-  /* --- Progress --- */
-  .progress-wrap { margin: 30px 0; }
-  .progress-bar-bg { height: 12px; background: #dfe6e9; border-radius: 10px; overflow: hidden; }
-  .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #55efc4, #00b894); width: 0%; transition: width 0.4s ease; }
-
-  /* --- Logs --- */
-  .log-box {
-    background: #2d3436;
-    color: #dfe6e9;
-    border-radius: 15px;
-    padding: 20px;
-    max-height: 250px;
-    font-family: var(--mono);
-    font-size: 0.8rem;
-    box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);
-  }
-  .log-ok { color: #55efc4; }
-
-  /* --- Buttons --- */
-  .btn {
-    padding: 12px 28px;
-    border-radius: 12px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    border: none;
-    font-family: inherit;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .btn-primary { background: var(--accent); color: white; box-shadow: 0 4px 15px var(--accent-glow); }
-  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--accent-glow); }
-  .btn-secondary { background: white; color: var(--text-main); border: 1px solid var(--glass-border); }
-  
-  .result-row {
-    background: white;
-    margin-bottom: 12px;
-    padding: 16px 20px;
-    border-radius: 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border: 1px solid var(--glass-border);
-  }
-
-  .hidden { display: none !important; }
-  .section-title { font-weight: 800; font-size: 0.9rem; text-transform: uppercase; color: var(--text-dim); letter-spacing: 1px; margin-bottom: 20px; }
-  
-  /* Utilities */
-  .flex-group { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
-  .reset-link { color: #ff7675; cursor: pointer; font-weight: 600; font-size: 0.85rem; border: none; background: none; text-decoration: underline; }
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap');
+  :root{--bg:#F4F2EE;--card:#FFF;--border:#E0DCD5;--text:#1A1A1A;--text-sec:#6B6560;--accent:#1B6B4A;--accent-light:#D8F3DC;--accent-hover:#145237;--danger:#C0392B;--blue:#2471A3;--blue-light:#D4E6F1;--mono:'JetBrains Mono',monospace;--sans:'DM Sans',sans-serif;--radius:10px;--shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04)}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5}
+  .container{max-width:860px;margin:0 auto;padding:32px 20px 60px}
+  header{text-align:center;margin-bottom:36px}
+  header h1{font-size:1.65rem;font-weight:700;letter-spacing:-.5px}
+  header p{font-size:.88rem;color:var(--text-sec);margin-top:4px}
+  .steps{display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:36px;flex-wrap:wrap}
+  .step{display:flex;align-items:center;gap:7px;font-size:.82rem;font-weight:500;color:var(--text-sec);opacity:.45;transition:opacity .3s}
+  .step.active{opacity:1;color:var(--accent)}.step.done{opacity:.7;color:var(--accent)}
+  .step-num{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:600;border:2px solid var(--border);background:var(--card);transition:all .3s}
+  .step.active .step-num{border-color:var(--accent);background:var(--accent);color:#fff}
+  .step.done .step-num{border-color:var(--accent);background:var(--accent-light);color:var(--accent)}
+  .step-connector{width:36px;height:2px;background:var(--border);margin:0 6px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:28px;box-shadow:var(--shadow);margin-bottom:20px;animation:fadeUp .35s ease}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  .upload-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:44px 20px;text-align:center;cursor:pointer;transition:all .25s}
+  .upload-zone:hover,.upload-zone.drag-over{border-color:var(--accent);background:var(--accent-light)}
+  .upload-zone svg{margin-bottom:12px}.upload-zone h3{font-size:.95rem;font-weight:600;margin-bottom:4px}.upload-zone p{font-size:.8rem;color:var(--text-sec)}.upload-zone input{display:none}
+  .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin:18px 0}
+  .stat-box{background:var(--bg);border-radius:8px;padding:14px;text-align:center}
+  .stat-box .num{font-size:1.35rem;font-weight:700;font-family:var(--mono);color:var(--accent)}
+  .stat-box .label{font-size:.7rem;color:var(--text-sec);margin-top:2px;text-transform:uppercase;letter-spacing:.5px;font-weight:500}
+  .gstin-list{margin:14px 0 0;display:flex;flex-wrap:wrap;gap:8px}
+  .gstin-tag{font-family:var(--mono);font-size:.76rem;background:var(--blue-light);color:var(--blue);padding:4px 10px;border-radius:6px;font-weight:500}
+  .btn{display:inline-flex;align-items:center;gap:7px;padding:10px 22px;border:none;border-radius:8px;font-family:var(--sans);font-size:.85rem;font-weight:600;cursor:pointer;transition:all .2s}
+  .btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:var(--accent-hover)}.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+  .btn-secondary{background:var(--bg);color:var(--text);border:1px solid var(--border)}.btn-secondary:hover{background:#e8e5df}
+  .btn-sm{padding:6px 14px;font-size:.78rem}.btn-row{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+  .progress-bar-bg{height:8px;background:var(--bg);border-radius:99px;overflow:hidden}
+  .progress-bar-fill{height:100%;background:var(--accent);border-radius:99px;width:0%;transition:width .3s ease}
+  .progress-text{font-size:.78rem;color:var(--text-sec);margin-top:6px;font-weight:500}
+  .log-box{background:#1A1A1A;color:#C8C8C8;border-radius:8px;padding:14px;max-height:200px;overflow-y:auto;font-family:var(--mono);font-size:.73rem;line-height:1.7;margin-top:14px}
+  .log-box .log-ok{color:#52BE80}.log-box .log-info{color:#85C1E9}.log-box .log-warn{color:#F0B27A}
+  .result-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
+  .result-row:last-child{border-bottom:none}
+  .result-gstin{font-family:var(--mono);font-size:.82rem;font-weight:600}
+  .result-meta{font-size:.74rem;color:var(--text-sec)}.result-meta span{display:inline-block;margin-right:12px}
+  .hidden{display:none!important}
+  .section-title{font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-sec);margin-bottom:14px}
+  .reset-link{font-size:.78rem;color:var(--danger);cursor:pointer;text-decoration:underline;background:none;border:none;font-family:var(--sans)}
 </style>
 </head>
 <body>
-
 <div class="container">
   <header>
-    <h1>GSTR-1 Workings</h1>
-    <p>Professional Sales Data Processor</p>
+    <h1>GSTR-1 Workings Generator</h1>
+    <p>Upload master sales data · Generate GSTR-1 workings per Seller GSTIN</p>
   </header>
-
   <div class="steps" id="stepsBar">
-    <div class="step active" data-step="1"><div class="step-num">1</div><div class="step-label">Upload</div></div>
-    <div class="step" data-step="2"><div class="step-num">2</div><div class="step-label">Preview</div></div>
-    <div class="step" data-step="3"><div class="step-num">3</div><div class="step-label">Process</div></div>
-    <div class="step" data-step="4"><div class="step-num">4</div><div class="step-label">Finish</div></div>
+    <div class="step active" data-step="1"><span class="step-num">1</span> Upload</div><div class="step-connector"></div>
+    <div class="step" data-step="2"><span class="step-num">2</span> Preview</div><div class="step-connector"></div>
+    <div class="step" data-step="3"><span class="step-num">3</span> Generate</div><div class="step-connector"></div>
+    <div class="step" data-step="4"><span class="step-num">4</span> Download</div>
   </div>
-
-  <div class="glass-card" id="uploadCard">
+  <div class="card" id="uploadCard">
     <div class="upload-zone" id="uploadZone">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-      <h3>Select Master Excel File</h3>
-      <p>Drag and drop your sales data here (.xlsx)</p>
-      <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6B6560" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <h3>Drop your Excel file here</h3>
+      <p>.xlsx or .xls — Master Sheet with sales data</p>
+      <input type="file" id="fileInput" accept=".xlsx,.xls">
     </div>
   </div>
-
-  <div class="glass-card hidden" id="previewCard">
-    <div class="section-title">Data Intelligence Preview</div>
+  <div class="card hidden" id="previewCard">
+    <div class="section-title">Data Preview</div>
     <div class="stats-grid" id="statsGrid"></div>
-    <div class="section-title" style="margin-top:30px; font-size:0.75rem;">Verified Seller Entities</div>
-    <div class="flex-group" id="gstinList" style="margin-bottom:30px;"></div>
-    <div class="flex-group">
-      <button class="btn btn-primary" id="generateBtn">Proceed to Generation</button>
-      <button class="reset-link" id="resetBtn1">Cancel & Restart</button>
+    <div style="font-size:.78rem;font-weight:600;color:var(--text-sec);margin-top:14px">Detected Seller GSTINs</div>
+    <div class="gstin-list" id="gstinList"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="generateBtn">Generate GSTR-1 Workings</button>
+      <button class="reset-link" id="resetBtn1">Start over</button>
     </div>
   </div>
-
-  <div class="glass-card hidden" id="genCard">
-    <div class="section-title">Processing Invoices</div>
+  <div class="card hidden" id="genCard">
+    <div class="section-title">Generating Files</div>
     <div class="progress-wrap">
       <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
-      <div style="display:flex; justify-content: space-between; margin-top:10px;">
-          <span id="progressText" style="font-size:0.85rem; font-weight:600;">Initializing...</span>
-      </div>
+      <div class="progress-text" id="progressText">Starting…</div>
     </div>
     <div class="log-box" id="logBox"></div>
   </div>
-
-  <div class="glass-card hidden" id="downloadCard">
-    <div class="section-title">Available Downloads</div>
-    <div id="resultsList" style="margin-bottom:24px;"></div>
-    <div class="flex-group">
-      <button class="btn btn-primary" id="downloadAllBtn">Download Bulk (ZIP)</button>
-      <button class="btn btn-secondary" id="resetBtn2">Process Another File</button>
+  <div class="card hidden" id="downloadCard">
+    <div class="section-title">Generated Files</div>
+    <div id="resultsList"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="downloadAllBtn">Download All as ZIP</button>
+      <button class="reset-link" id="resetBtn2">Process another file</button>
     </div>
   </div>
 </div>
 
 <script>
-/* LOGIC REMAINS UNTOUCHED AS PER REQUEST 
-   (All mapping constants and functions from your original file go here)
-*/
-
-const STATE_MAP={"ANDAMAN & NICOBAR":"35-Andaman and Nicobar Islands","ANDAMAN AND NICOBAR ISLANDS":"35-Andaman and Nicobar Islands","ANDAMAN & NICOBAR ISLANDS":"35-Andaman and Nicobar Islands","ANDHRA PRADESH":"37-Andhra Pradesh","ARUNACHAL PRADESH":"12-Arunachal Pradesh","ASSAM":"18-Assam","BIHAR":"10-Bihar","CHANDIGARH":"04-Chandigarh","CHHATTISGARH":"22-Chhattisgarh","DADRA & NAGAR HAVELI":"26-Dadra and Nagar Haveli and Daman and Diu","DAMAN & DIU":"26-Dadra and Nagar Haveli and Daman and Diu","DADRA AND NAGAR HAVELI AND DAMAN AND DIU":"26-Dadra and Nagar Haveli and Daman and Diu","DELHI":"07-Delhi","GOA":"30-Goa","GUJARAT":"24-Gujarat","HARYANA":"06-Haryana","HIMACHAL PRADESH":"02-Himachal Pradesh","JAMMU & KASHMIR":"01-Jammu and Kashmir","JAMMU AND KASHMIR":"01-Jammu and Kashmir","JHARKHAND":"20-Jharkhand","KARNATAKA":"29-Karnataka","KERALA":"32-Kerala","LADAKH":"38-Ladakh","LAKSHADWEEP":"31-Lakshadweep","MADHYA PRADESH":"23-Madhya Pradesh","MAHARASHTRA":"27-Maharashtra","MANIPUR":"14-Manipur","MEGHALAYA":"17-Meghalaya","MIZORAM":"15-Mizoram","NAGALAND":"13-Nagaland","ODISHA":"21-Odisha","ORISSA":"21-Odisha","PUDUCHERRY":"34-Puducherry","PONDICHERRY":"34-Puducherry","PUNJAB":"03-Punjab","RAJASTHAN":"08-Rajasthan","SIKKIM":"11-Sikkim","TAMIL NADU":"33-Tamil Nadu","TELANGANA":"36-Telangana","TRIPURA":"16-Tripura","UTTAR PRADESH":"09-Uttar Pradesh","UTTARAKHAND":"05-Uttarakhand","UTTARANCHAL":"05-Uttarakhand","WEST BENGAL":"19-West Bengal","OTHER TERRITORY":"97-Other Territory"};
+/* ═════════════════════════════════════════════════════════════
+   CONSTANTS
+   ═════════════════════════════════════════════════════════════ */
+const STATE_MAP={"ANDAMAN & NICOBAR":"35-Andaman and Nicobar Islands","ANDAMAN AND NICOBAR ISLANDS":"35-Andaman and Nicobar Islands","ANDAMAN & NICOBAR ISLANDS":"35-Andaman and Nicobar Islands","ANDHRA PRADESH":"37-Andhra Pradesh","ARUNACHAL PRADESH":"12-Arunachal Pradesh","ASSAM":"18-Assam","BIHAR":"10-Bihar","CHANDIGARH":"04-Chandigarh","CHHATTISGARH":"22-Chhattisgarh","DADRA & NAGAR HAVELI":"26-Dadra and Nagar Haveli and Daman and Diu","DAMAN & DIU":"26-Dadra and Nagar Haveli and Daman and Diu","DADRA AND NAGAR HAVELI AND DAMAN AND DIU":"26-Dadra and Nagar Haveli and Daman and Diu","DELHI":"07-Delhi","GOA":"30-Goa","GUJARAT":"24-Gujarat","HARYANA":"06-Haryana","HIMACHAL PRADESH":"02-Himachal Pradesh","JAMMU & KASHMIR":"01-Jammu and Kashmir","JAMMU AND KASHMIR":"01-Jammu and Kashmir","JHARKHAND":"20-Jharkhand","KARNATAKA":"29-Karnataka","KERALA":"32-Kerala","LADAKH":"38-Ladakh","LAKSHADWEEP":"31-Lakshadweep","MADHYA PRADESH":"23-MADHYA PRADESH","MAHARASHTRA":"27-Maharashtra","MANIPUR":"14-Manipur","MEGHALAYA":"17-Meghalaya","MIZORAM":"15-Mizoram","NAGALAND":"13-Nagaland","ODISHA":"21-Odisha","ORISSA":"21-Odisha","PUDUCHERRY":"34-Puducherry","PONDICHERRY":"34-Puducherry","PUNJAB":"03-Punjab","RAJASTHAN":"08-Rajasthan","SIKKIM":"11-Sikkim","TAMIL NADU":"33-Tamil Nadu","TELANGANA":"36-Telangana","TRIPURA":"16-Tripura","UTTAR PRADESH":"09-Uttar Pradesh","UTTARAKHAND":"05-Uttarakhand","UTTARANCHAL":"05-Uttarakhand","WEST BENGAL":"19-West Bengal","OTHER TERRITORY":"97-Other Territory"};
 const MONTHS=["JANUARY","FEBRUARY","MARCH","APRIL","MAY","JUNE","JULY","AUGUST","SEPTEMBER","OCTOBER","NOVEMBER","DECEMBER"];
 const MON_SHORT=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
+/* ═════════════════════════════════════════════════════════════
+   HELPERS
+   ═════════════════════════════════════════════════════════════ */
 const r2=v=>Math.round((+v||0)*100)/100;
 const n=v=>+v||0;
 const mapState=raw=>{if(!raw)return"";const k=String(raw).trim().toUpperCase();return STATE_MAP[k]||String(raw).trim();};
@@ -286,6 +124,7 @@ function parseDate(val){
 }
 function fmtDate(val){const d=parseDate(val);if(!d)return String(val||"");return `${String(d.getDate()).padStart(2,'0')}-${MON_SHORT[d.getMonth()]}-${d.getFullYear()}`;}
 function detectMonth(rows){const c={};rows.forEach(r=>{const d=parseDate(r["INVOICE DATE"]);if(d){const k=`${MONTHS[d.getMonth()]} ${d.getFullYear()}`;c[k]=(c[k]||0)+1;}});let best="",bestN=0;for(const k in c){if(c[k]>bestN){bestN=c[k];best=k;}}return best||"UNKNOWN";}
+
 function isB2B(row){const g=String(row["BUYER GSTIN"]||"").trim().replace(/[^a-zA-Z0-9]/g,'');return g.length===15;}
 function isCreditNote(row){return n(row["TAXABLE VALUE"])<0;}
 
@@ -300,89 +139,74 @@ function detectSeries(invoices){
   return runs;
 }
 
+/* ═════════════════════════════════════════════════════════════
+   EXCEL STYLES (ExcelJS) - UPDATED TO SUPPORT START COL
+   ═════════════════════════════════════════════════════════════ */
 const C_DK='FF1B6B4A', C_LT='FFD8F3DC', C_GRAY='FFF7F6F3', C_BORDER='FFD5D0C8', C_TOTBG='FFE8F5E9';
 const thinBdr={top:{style:'thin',color:{argb:C_BORDER}},bottom:{style:'thin',color:{argb:C_BORDER}},left:{style:'thin',color:{argb:C_BORDER}},right:{style:'thin',color:{argb:C_BORDER}}};
 const medBdr={top:{style:'medium',color:{argb:C_DK}},bottom:{style:'medium',color:{argb:C_DK}},left:{style:'thin',color:{argb:C_BORDER}},right:{style:'thin',color:{argb:C_BORDER}}};
 const NF='#,##0.00';
 
 function sTitle(cell,txt){cell.value=txt;cell.font={bold:true,size:13,color:{argb:'1B6B4A'}};}
-function sHeaderRow(row,cnt){
+
+function sHeaderRow(row,cnt,startCol=1){
   row.height=32;
-  for(let c=1;c<=cnt;c++){const cl=row.getCell(c);cl.font={bold:true,size:9.5,color:{argb:'FFFFFF'}};cl.fill={type:'pattern',pattern:'solid',fgColor:{argb:C_DK}};cl.alignment={horizontal:'center',vertical:'middle',wrapText:true};cl.border=thinBdr;}
+  for(let c=startCol;c<=cnt;c++){const cl=row.getCell(c);cl.font={bold:true,size:9.5,color:{argb:'FFFFFF'}};cl.fill={type:'pattern',pattern:'solid',fgColor:{argb:C_DK}};cl.alignment={horizontal:'center',vertical:'middle',wrapText:true};cl.border=thinBdr;}
 }
-function sLabelRow(row,cnt){
+function sLabelRow(row,cnt,startCol=1){
   row.height=22;
-  for(let c=1;c<=cnt;c++){const cl=row.getCell(c);if(cl.value){cl.font={bold:true,size:8.5,color:{argb:'555555'}};cl.fill={type:'pattern',pattern:'solid',fgColor:{argb:'F0EFEB'}};cl.alignment={horizontal:'center',vertical:'middle',wrapText:true};cl.border=thinBdr;}}
+  for(let c=startCol;c<=cnt;c++){const cl=row.getCell(c);if(cl.value){cl.font={bold:true,size:8.5,color:{argb:'555555'}};cl.fill={type:'pattern',pattern:'solid',fgColor:{argb:'F0EFEB'}};cl.alignment={horizontal:'center',vertical:'middle',wrapText:true};cl.border=thinBdr;}}
 }
-function sValRow(row,cnt){
+function sValRow(row,cnt,startCol=1){
   row.height=24;
-  for(let c=1;c<=cnt;c++){const cl=row.getCell(c);cl.font={bold:true,size:10};cl.fill={type:'pattern',pattern:'solid',fgColor:{argb:C_LT}};cl.alignment={horizontal:'center',vertical:'middle'};cl.border=thinBdr;if(typeof cl.value==='number'||(cl.value&&cl.value.formula))cl.numFmt=NF;}
+  for(let c=startCol;c<=cnt;c++){const cl=row.getCell(c);cl.font={bold:true,size:10};cl.fill={type:'pattern',pattern:'solid',fgColor:{argb:C_LT}};cl.alignment={horizontal:'center',vertical:'middle'};cl.border=thinBdr;if(typeof cl.value==='number'||(cl.value&&cl.value.formula))cl.numFmt=NF;}
 }
-function sDataRow(row,cnt,alt){
+function sDataRow(row,cnt,alt,startCol=1){
   row.height=20;
-  for(let c=1;c<=cnt;c++){const cl=row.getCell(c);cl.font={size:9.5};cl.border=thinBdr;cl.alignment={vertical:'middle'};if(alt)cl.fill={type:'pattern',pattern:'solid',fgColor:{argb:C_GRAY}};if(typeof cl.value==='number')cl.numFmt=NF;}
+  for(let c=startCol;c<=cnt;c++){const cl=row.getCell(c);cl.font={size:9.5};cl.border=thinBdr;cl.alignment={vertical:'middle'};if(alt)cl.fill={type:'pattern',pattern:'solid',fgColor:{argb:C_GRAY}};if(typeof cl.value==='number')cl.numFmt=NF;}
 }
-function sTotalRow(row,cnt){
+function sTotalRow(row,cnt,startCol=1){
   row.height=26;
-  for(let c=1;c<=cnt;c++){const cl=row.getCell(c);cl.font={bold:true,size:10};cl.fill={type:'pattern',pattern:'solid',fgColor:{argb:C_TOTBG}};cl.alignment={horizontal:'center',vertical:'middle'};cl.border=medBdr;if(typeof cl.value==='number'||(cl.value&&cl.value.formula))cl.numFmt=NF;}
+  for(let c=startCol;c<=cnt;c++){const cl=row.getCell(c);cl.font={bold:true,size:10};cl.fill={type:'pattern',pattern:'solid',fgColor:{argb:C_TOTBG}};cl.alignment={horizontal:'center',vertical:'middle'};cl.border=medBdr;if(typeof cl.value==='number'||(cl.value&&cl.value.formula))cl.numFmt=NF;}
 }
 
+/* ═════════════════════════════════════════════════════════════
+   WORKBOOK GENERATION
+   ═════════════════════════════════════════════════════════════ */
 async function generateWorkbook(gstin, allRows){
   const b2bRows=allRows.filter(r=>isB2B(r));
   const b2cRows=allRows.filter(r=>!isB2B(r));
   const wb=new ExcelJS.Workbook();
   wb.creator='GSTR-1 Workings Generator';
 
+  /* ════════════ SHEET 1 — B2B (No gaps) ════════════ */
   const wsB=wb.addWorksheet('B2B',{views:[{showGridLines:false}]});
   const NC=17;
   wsB.columns=[{width:22},{width:14},{width:22},{width:14},{width:16},{width:32},{width:12},{width:14},{width:16},{width:18},{width:8},{width:16},{width:12},{width:14},{width:14},{width:14},{width:10}];
   wsB.mergeCells('A1:Q1');sTitle(wsB.getCell('A1'),'Summary For B2B');wsB.getRow(1).height=28;
   const lr=wsB.getRow(2);
   lr.getCell(1).value='No. of Recipients';lr.getCell(3).value='No. of Invoices';lr.getCell(5).value='Total Invoice Value';
-  lr.getCell(12).value='Total Taxable Value';lr.getCell(13).value='Total Cess';
-  lr.getCell(14).value='Total IGST';lr.getCell(15).value='Total CGST';lr.getCell(16).value='Total SGST';
+  lr.getCell(12).value='Total Taxable Value';lr.getCell(14).value='Total IGST';lr.getCell(15).value='Total CGST';lr.getCell(16).value='Total SGST';
   sLabelRow(lr,NC);
   const ds=5, de=ds+b2bRows.length-1;
   const vr=wsB.getRow(3);
   const uniqBuyers=new Set(b2bRows.map(r=>String(r["BUYER GSTIN"]||"").trim()).filter(x=>x));
-  vr.getCell(1).value=uniqBuyers.size;
-  vr.getCell(3).value=b2bRows.length;
-  if(b2bRows.length>0){
-    vr.getCell(5).value={formula:`SUM(E${ds}:E${de})`};
-    vr.getCell(12).value={formula:`SUM(L${ds}:L${de})`};
-    vr.getCell(14).value={formula:`SUM(N${ds}:N${de})`};
-    vr.getCell(15).value={formula:`SUM(O${ds}:O${de})`};
-    vr.getCell(16).value={formula:`SUM(P${ds}:P${de})`};
-  }else{[5,12,14,15,16].forEach(c=>vr.getCell(c).value=0);}
-  vr.getCell(13).value=0;
+  vr.getCell(1).value=uniqBuyers.size;vr.getCell(3).value=b2bRows.length;
+  if(b2bRows.length>0){[5,12,14,15,16].forEach(c=>vr.getCell(c).value={formula:`SUM(${String.fromCharCode(64+c)}${ds}:${String.fromCharCode(64+c)}${de})`});}
+  else{[5,12,14,15,16].forEach(c=>vr.getCell(c).value=0);}
   sValRow(vr,NC);
   const hdr=['GSTIN/UIN of Recipient','Receiver Name','Invoice Number','Invoice date','Invoice Value','Place Of Supply','Reverse Charge','Applicable % of Tax Rate','Invoice Type','E-Commerce GSTIN','Rate','Taxable Value','Cess Amount','IGST','CGST','SGST','Difference'];
   const hr=wsB.getRow(4);hdr.forEach((v,i)=>hr.getCell(i+1).value=v);sHeaderRow(hr,NC);
   b2bRows.forEach((r,idx)=>{
-    const rn=ds+idx,row=wsB.getRow(rn);
+    const row=wsB.getRow(ds+idx);
     const tv=r2(n(r["TAXABLE VALUE"])),ig=r2(n(r["IGST"])),cg=r2(n(r["CGST"])),sg=r2(n(r["SGST"]));
-    const iv=r2(tv+ig+cg+sg);
-    row.getCell(1).value=r["BUYER GSTIN"]||"";
-    row.getCell(2).value="";
-    row.getCell(3).value=r["INVOICE NO"]||"";
-    row.getCell(4).value=fmtDate(r["INVOICE DATE"]);
-    row.getCell(5).value=iv;
-    row.getCell(6).value=mapState(r["BILLING STATE"]);
-    row.getCell(7).value="N";
-    row.getCell(8).value="";
-    row.getCell(9).value="Regular B2B";
-    row.getCell(10).value="";
-    row.getCell(11).value=n(r["TAX RATE"]);
-    row.getCell(12).value=tv;
-    row.getCell(13).value=0;
-    row.getCell(14).value=ig!==0?ig:"";
-    row.getCell(15).value=cg!==0?cg:"";
-    row.getCell(16).value=sg!==0?sg:"";
-    row.getCell(17).value=0;
-    sDataRow(row,NC,idx%2===1);
-    row.getCell(11).numFmt='0';
+    row.getCell(1).value=r["BUYER GSTIN"]||"";row.getCell(3).value=r["INVOICE NO"]||"";row.getCell(4).value=fmtDate(r["INVOICE DATE"]);
+    row.getCell(5).value=r2(tv+ig+cg+sg);row.getCell(6).value=mapState(r["BILLING STATE"]);row.getCell(7).value="N";row.getCell(9).value="Regular B2B";
+    row.getCell(11).value=n(r["TAX RATE"]);row.getCell(12).value=tv;row.getCell(14).value=ig||"";row.getCell(15).value=cg||"";row.getCell(16).value=sg||"";
+    sDataRow(row,NC,idx%2===1);row.getCell(11).numFmt='0';
   });
 
+  /* ════════════ SHEET 2 — B2C (Gap of 2 columns) ════════════ */
   const wsC=wb.addWorksheet('B2C',{views:[{showGridLines:false}]});
   wsC.columns=[{width:4},{width:4},{width:34},{width:10},{width:18},{width:16},{width:16},{width:16},{width:20}];
   const b2cGrp={};
@@ -391,152 +215,99 @@ async function generateWorkbook(gstin, allRows){
     if(!b2cGrp[key])b2cGrp[key]={pos,rate,tv:0,ig:0,cg:0,sg:0};
     b2cGrp[key].tv+=n(r["TAXABLE VALUE"]);b2cGrp[key].ig+=n(r["IGST"]);b2cGrp[key].cg+=n(r["CGST"]);b2cGrp[key].sg+=n(r["SGST"]);
   });
-  const b2cArr=Object.values(b2cGrp).sort((a,b)=>a.pos<b.pos?-1:a.pos>b.pos?1:a.rate-b.rate);
-  b2cArr.forEach(g=>{g.tv=r2(g.tv);g.ig=r2(g.ig);g.cg=r2(g.cg);g.sg=r2(g.sg);g.iv=r2(g.tv+g.ig+g.cg+g.sg);});
+  const b2cArr=Object.values(b2cGrp).sort((a,b)=>a.pos.localeCompare(b.pos)||a.rate-b.rate);
   wsC.mergeCells('C1:I1');sTitle(wsC.getCell('C1'),'B2C Sales');wsC.getRow(1).height=28;
   const chdr=wsC.getRow(2);
   ['','','Place of Supply','Rate','Sum of Taxable Value','Sum of IGST','Sum of CGST','Sum of SGST','Sum of Invoice Value'].forEach((v,i)=>chdr.getCell(i+1).value=v);
-  sHeaderRow(chdr,9);
+  sHeaderRow(chdr,9,3); // Start formatting from Col 3
   const cds=3;
   b2cArr.forEach((g,idx)=>{
-    const row=wsC.getRow(cds+idx);
-    row.getCell(3).value=g.pos;row.getCell(4).value=g.rate;
-    row.getCell(5).value=g.tv;row.getCell(6).value=g.ig;row.getCell(7).value=g.cg;row.getCell(8).value=g.sg;row.getCell(9).value=g.iv;
-    sDataRow(row,9,idx%2===1);row.getCell(4).numFmt='0';
+    const row=wsC.getRow(cds+idx),tv=r2(g.tv),ig=r2(g.ig),cg=r2(g.cg),sg=r2(g.sg);
+    row.getCell(3).value=g.pos;row.getCell(4).value=g.rate;row.getCell(5).value=tv;row.getCell(6).value=ig;row.getCell(7).value=cg;row.getCell(8).value=sg;row.getCell(9).value=r2(tv+ig+cg+sg);
+    sDataRow(row,9,idx%2===1,3);row.getCell(4).numFmt='0';
   });
-  const cgtR=cds+b2cArr.length;
-  const cgt=wsC.getRow(cgtR);
-  cgt.getCell(3).value='Grand Total';cgt.getCell(4).value='';
-  if(b2cArr.length>0){
-    const s=cds,e=cgtR-1;
-    cgt.getCell(5).value={formula:`SUM(E${s}:E${e})`};
-    cgt.getCell(6).value={formula:`SUM(F${s}:F${e})`};
-    cgt.getCell(7).value={formula:`SUM(G${s}:G${e})`};
-    cgt.getCell(8).value={formula:`SUM(H${s}:H${e})`};
-    cgt.getCell(9).value={formula:`SUM(I${s}:I${e})`};
-  }else{[5,6,7,8,9].forEach(c=>cgt.getCell(c).value=0);}
-  sTotalRow(cgt,9);
+  const cgtR=cds+b2cArr.length, cgt=wsC.getRow(cgtR);cgt.getCell(3).value='Grand Total';
+  if(b2cArr.length>0){[5,6,7,8,9].forEach(c=>cgt.getCell(c).value={formula:`SUM(${String.fromCharCode(64+c)}${cds}:${String.fromCharCode(64+c)}${cgtR-1})`});}
+  else{[5,6,7,8,9].forEach(c=>cgt.getCell(c).value=0);}
+  sTotalRow(cgt,9,3);
 
+  /* ════════════ SHEET 3 — HSN (Gap of 1 column) ════════════ */
   const wsH=wb.addWorksheet('HSN',{views:[{showGridLines:false}]});
   wsH.columns=[{width:4},{width:18},{width:10},{width:16},{width:24},{width:16},{width:16},{width:16}];
-  const hB2B={};
-  b2bRows.forEach(r=>{
-    const hsn=String(r["HSN"]||""),rate=n(r["TAX RATE"]),key=`${hsn}|||${rate}`;
-    if(!hB2B[key])hB2B[key]={hsn,rate,qty:0,tv:0,ig:0,cg:0,sg:0};
-    hB2B[key].qty+=n(r["QUANTITY"]);hB2B[key].tv+=n(r["TAXABLE VALUE"]);hB2B[key].ig+=n(r["IGST"]);hB2B[key].cg+=n(r["CGST"]);hB2B[key].sg+=n(r["SGST"]);
-  });
-  const hB2BArr=Object.values(hB2B).sort((a,b)=>String(a.hsn)<String(b.hsn)?-1:String(a.hsn)>String(b.hsn)?1:a.rate-b.rate);
-  hB2BArr.forEach(g=>{g.qty=r2(g.qty);g.tv=r2(g.tv);g.ig=r2(g.ig);g.cg=r2(g.cg);g.sg=r2(g.sg);});
+  const processHSN=(rows)=>{
+    const g={};rows.forEach(r=>{
+      const hsn=String(r["HSN"]||""),rate=n(r["TAX RATE"]),key=`${hsn}|||${rate}`;
+      if(!g[key])g[key]={hsn,rate,qty:0,tv:0,ig:0,cg:0,sg:0};
+      g[key].qty+=n(r["QUANTITY"]);g[key].tv+=n(r["TAXABLE VALUE"]);g[key].ig+=n(r["IGST"]);g[key].cg+=n(r["CGST"]);g[key].sg+=n(r["SGST"]);
+    });
+    return Object.values(g).sort((a,b)=>a.hsn.localeCompare(b.hsn)||a.rate-b.rate);
+  };
   let hR=1;
-  wsH.mergeCells(`B${hR}:H${hR}`);sTitle(wsH.getCell(`B${hR}`),'B2B');wsH.getRow(hR).height=26;hR++;
-  const hhB=wsH.getRow(hR);
-  ['','Hsn/sac','Rate','Sum of Quantity','Sum of Tax Exclusive Gross','Sum of IGST','Sum of CGST','Sum of SGST'].forEach((v,i)=>hhB.getCell(i+1).value=v);
-  sHeaderRow(hhB,8);hR++;
-  const hBds=hR;
-  hB2BArr.forEach((g,idx)=>{
-    const row=wsH.getRow(hR);
-    row.getCell(2).value=g.hsn;row.getCell(3).value=g.rate;row.getCell(4).value=g.qty;
-    row.getCell(5).value=g.tv;row.getCell(6).value=g.ig;row.getCell(7).value=g.cg;row.getCell(8).value=g.sg;
-    sDataRow(row,8,idx%2===1);row.getCell(3).numFmt='0';hR++;
+  [['B2B',b2bRows],['B2C',b2cRows]].forEach(([title,rows])=>{
+    wsH.mergeCells(`B${hR}:H${hR}`);sTitle(wsH.getCell(`B${hR}`),title);hR++;
+    const hh=wsH.getRow(hR);['','Hsn/sac','Rate','Sum of Quantity','Taxable Value','Sum of IGST','Sum of CGST','Sum of SGST'].forEach((v,i)=>hh.getCell(i+1).value=v);
+    sHeaderRow(hh,8,2);hR++;
+    const start=hR,data=processHSN(rows);
+    data.forEach((d,idx)=>{
+      const row=wsH.getRow(hR);row.getCell(2).value=d.hsn;row.getCell(3).value=d.rate;row.getCell(4).value=r2(d.qty);row.getCell(5).value=r2(d.tv);row.getCell(6).value=r2(d.ig);row.getCell(7).value=r2(d.cg);row.getCell(8).value=r2(d.sg);
+      sDataRow(row,8,idx%2===1,2);row.getCell(3).numFmt='0';hR++;
+    });
+    const sub=wsH.getRow(hR);sub.getCell(2).value='Subtotal';
+    if(data.length>0){[4,5,6,7,8].forEach(c=>sub.getCell(c).value={formula:`SUM(${String.fromCharCode(64+c)}${start}:${String.fromCharCode(64+c)}${hR-1})`});}
+    else{[4,5,6,7,8].forEach(c=>sub.getCell(c).value=0);}
+    sTotalRow(sub,8,2);hR+=2;
   });
-  const hBsub=wsH.getRow(hR);hBsub.getCell(2).value='Subtotal';
-  if(hB2BArr.length>0){const s=hBds,e=hR-1;[4,5,6,7,8].forEach(c=>hBsub.getCell(c).value={formula:`SUM(${String.fromCharCode(64+c)}${s}:${String.fromCharCode(64+c)}${e})`});}
-  else{[4,5,6,7,8].forEach(c=>hBsub.getCell(c).value=0);}
-  sTotalRow(hBsub,8);hR+=2;
-  const hB2C={};
-  b2cRows.forEach(r=>{
-    const hsn=String(r["HSN"]||""),rate=n(r["TAX RATE"]),key=`${hsn}|||${rate}`;
-    if(!hB2C[key])hB2C[key]={hsn,rate,qty:0,tv:0,ig:0,cg:0,sg:0};
-    let qty=n(r["QUANTITY"]);if(isCreditNote(r)&&qty>0)qty=-qty;
-    hB2C[key].qty+=qty;hB2C[key].tv+=n(r["TAXABLE VALUE"]);hB2C[key].ig+=n(r["IGST"]);hB2C[key].cg+=n(r["CGST"]);hB2C[key].sg+=n(r["SGST"]);
-  });
-  const hB2CArr=Object.values(hB2C).sort((a,b)=>String(a.hsn)<String(b.hsn)?-1:String(a.hsn)>String(b.hsn)?1:a.rate-b.rate);
-  hB2CArr.forEach(g=>{g.qty=r2(g.qty);g.tv=r2(g.tv);g.ig=r2(g.ig);g.cg=r2(g.cg);g.sg=r2(g.sg);});
-  wsH.mergeCells(`B${hR}:H${hR}`);sTitle(wsH.getCell(`B${hR}`),'B2C');wsH.getRow(hR).height=26;hR++;
-  const hhC=wsH.getRow(hR);
-  ['','Row Labels','Tax Rate','Sum of Sum of Quantity','Sum of Sum of Tax Exclusive Gross','Sum of Sum of IGST','Sum of Sum of CGST','Sum of Sum of SGST'].forEach((v,i)=>hhC.getCell(i+1).value=v);
-  sHeaderRow(hhC,8);hR++;
-  const hCds=hR;
-  hB2CArr.forEach((g,idx)=>{
-    const row=wsH.getRow(hR);
-    row.getCell(2).value=g.hsn;row.getCell(3).value=g.rate;row.getCell(4).value=g.qty;
-    row.getCell(5).value=g.tv;row.getCell(6).value=g.ig;row.getCell(7).value=g.cg;row.getCell(8).value=g.sg;
-    sDataRow(row,8,idx%2===1);row.getCell(3).numFmt='0';hR++;
-  });
-  const hCgt=wsH.getRow(hR);hCgt.getCell(2).value='Grand Total';
-  if(hB2CArr.length>0){const s=hCds,e=hR-1;[4,5,6,7,8].forEach(c=>hCgt.getCell(c).value={formula:`SUM(${String.fromCharCode(64+c)}${s}:${String.fromCharCode(64+c)}${e})`});}
-  else{[4,5,6,7,8].forEach(c=>hCgt.getCell(c).value=0);}
-  sTotalRow(hCgt,8);
 
+  /* ════════════ SHEET 4 — Docs (Gap of 1 column) ════════════ */
   const wsD=wb.addWorksheet('Docs Issued',{views:[{showGridLines:false}]});
   wsD.columns=[{width:4},{width:8},{width:26},{width:26},{width:24},{width:24},{width:18}];
-  const dhdr=wsD.getRow(1);
-  ['','Sl. No.','Source','Particulars','Doc From','Doc To','No. of Documents'].forEach((v,i)=>dhdr.getCell(i+1).value=v);
-  sHeaderRow(dhdr,7);
-  const dGrp={};
-  allRows.forEach(r=>{
-    const seller=r["SELLER"]||"",cn=isCreditNote(r);
-    const docType=cn?"Credit Note":"Invoice for Outward Supply";
-    const key=`${seller}|||${docType}`;
-    if(!dGrp[key])dGrp[key]={seller,docType,invoices:[]};
-    const inv=r["INVOICE NO"];if(inv&&String(inv).trim())dGrp[key].invoices.push(String(inv).trim());
+  const dhdr=wsD.getRow(1);['','Sl. No.','Source','Particulars','Doc From','Doc To','No. of Documents'].forEach((v,i)=>dhdr.getCell(i+1).value=v);
+  sHeaderRow(dhdr,7,2);
+  const dGrp={};allRows.forEach(r=>{
+    const seller=r["SELLER"]||"",type=isCreditNote(r)?"Credit Note":"Invoice for Outward Supply",key=`${seller}|||${type}`;
+    if(!dGrp[key])dGrp[key]={seller,type,inv:[]};if(r["INVOICE NO"])dGrp[key].inv.push(String(r["INVOICE NO"]));
   });
-  const sortedDG=Object.values(dGrp).sort((a,b)=>{if(a.seller<b.seller)return-1;if(a.seller>b.seller)return 1;if(a.docType==="Invoice for Outward Supply"&&b.docType!=="Invoice for Outward Supply")return-1;if(a.docType!=="Invoice for Outward Supply"&&b.docType==="Invoice for Outward Supply")return 1;return 0;});
-  let slN=1,dR=2;const dds=2;
-  sortedDG.forEach(grp=>{
-    const series=detectSeries(grp.invoices);
-    series.forEach(s=>{
-      const row=wsD.getRow(dR);
-      row.getCell(2).value=slN++;row.getCell(3).value=grp.seller;row.getCell(4).value=grp.docType;
-      row.getCell(5).value=s.from;row.getCell(6).value=s.to;row.getCell(7).value=s.count;
-      sDataRow(row,7,(dR-2)%2===1);row.getCell(2).numFmt='0';row.getCell(7).numFmt='0';dR++;
+  let slN=1,dR=2;
+  Object.values(dGrp).sort((a,b)=>a.seller.localeCompare(b.seller)).forEach(g=>{
+    detectSeries(g.inv).forEach(s=>{
+      const row=wsD.getRow(dR);row.getCell(2).value=slN++;row.getCell(3).value=g.seller;row.getCell(4).value=g.type;row.getCell(5).value=s.from;row.getCell(6).value=s.to;row.getCell(7).value=s.count;
+      sDataRow(row,7,(dR-2)%2===1,2);dR++;
     });
   });
-  const dtot=wsD.getRow(dR);dtot.getCell(2).value='TOTAL';
-  if(dR>dds){dtot.getCell(7).value={formula:`SUM(G${dds}:G${dR-1})`};}else{dtot.getCell(7).value=0;}
-  sTotalRow(dtot,7);
+  const dtot=wsD.getRow(dR);dtot.getCell(2).value='TOTAL';if(dR>2){dtot.getCell(7).value={formula:`SUM(G2:G${dR-1})`};}else dtot.getCell(7).value=0;
+  sTotalRow(dtot,7,2);
 
+  /* ════════════ SHEET 5 — Summary ════════════ */
   const wsS=wb.addWorksheet('Summary',{views:[{showGridLines:false}]});
-  wsS.columns=[{width:18},{width:18},{width:10},{width:16},{width:16},{width:16},{width:20}];
-  const monthStr=detectMonth(allRows);
-  let bTV=0,bIG=0,bCG=0,bSG=0,bIV=0;
-  b2bRows.forEach(r=>{const tv=r2(n(r["TAXABLE VALUE"])),ig=r2(n(r["IGST"])),cg=r2(n(r["CGST"])),sg=r2(n(r["SGST"]));bTV+=tv;bIG+=ig;bCG+=cg;bSG+=sg;bIV+=r2(tv+ig+cg+sg);});
-  bTV=r2(bTV);bIG=r2(bIG);bCG=r2(bCG);bSG=r2(bSG);bIV=r2(bIV);
-  let cTV=0,cIG=0,cCG=0,cSG=0;
-  b2cRows.forEach(r=>{cTV+=n(r["TAXABLE VALUE"]);cIG+=n(r["IGST"]);cCG+=n(r["CGST"]);cSG+=n(r["SGST"]);});
-  cTV=r2(cTV);cIG=r2(cIG);cCG=r2(cCG);cSG=r2(cSG);const cIV=r2(cTV+cIG+cCG+cSG);
-  wsS.mergeCells('A1:G1');wsS.getCell('A1').value=`SELLER GSTIN: ${gstin}`;wsS.getCell('A1').font={bold:true,size:14,color:{argb:'1B6B4A'}};wsS.getRow(1).height=30;
-  wsS.mergeCells('A2:G2');wsS.getCell('A2').value=`GSTIN:- ${gstin}`;wsS.getCell('A2').font={bold:true,size:11};
-  wsS.mergeCells('A3:G3');wsS.getCell('A3').value=`GSTR-1 SUMMARY FOR THE MONTH OF ${monthStr}`;wsS.getCell('A3').font={bold:true,size:11,color:{argb:'333333'}};wsS.getRow(3).height=24;
-  wsS.mergeCells('A5:G5');wsS.getCell('A5').value='Outward Supply';wsS.getCell('A5').font={bold:true,size:12};wsS.getCell('A5').fill={type:'pattern',pattern:'solid',fgColor:{argb:C_LT}};wsS.getRow(5).height=26;
-  const shdr=wsS.getRow(6);['Particulars','Taxable Value','Rate','IGST','CGST','SGST','Invoice Value'].forEach((v,i)=>shdr.getCell(i+1).value=v);sHeaderRow(shdr,7);
-  const sr7=wsS.getRow(7);sr7.getCell(1).value='B2B';sr7.getCell(2).value=bTV;sr7.getCell(3).value='';sr7.getCell(4).value=bIG;sr7.getCell(5).value=bCG;sr7.getCell(6).value=bSG;sr7.getCell(7).value=bIV;
-  sDataRow(sr7,7,false);sr7.getCell(1).font={bold:true,size:10};
-  const sr9=wsS.getRow(9);sr9.getCell(1).value='B2C';sr9.getCell(2).value=cTV;sr9.getCell(3).value='';sr9.getCell(4).value=cIG;sr9.getCell(5).value=cCG;sr9.getCell(6).value=cSG;sr9.getCell(7).value=cIV;
-  sDataRow(sr9,7,true);sr9.getCell(1).font={bold:true,size:10};
-  const sr11=wsS.getRow(11);sr11.getCell(1).value='Total';
-  sr11.getCell(2).value={formula:'B7+B9'};sr11.getCell(3).value='';
-  sr11.getCell(4).value={formula:'D7+D9'};sr11.getCell(5).value={formula:'E7+E9'};
-  sr11.getCell(6).value={formula:'F7+F9'};sr11.getCell(7).value={formula:'G7+G9'};
-  sTotalRow(sr11,7);
+  wsS.columns=[{width:22},{width:18},{width:10},{width:16},{width:16},{width:16},{width:20}];
+  const m=detectMonth(allRows);
+  let bTV=0,bIG=0,bCG=0,bSG=0,bIV=0;b2bRows.forEach(r=>{const tv=n(r["TAXABLE VALUE"]),ig=n(r["IGST"]),cg=n(r["CGST"]),sg=n(r["SGST"]);bTV+=tv;bIG+=ig;bCG+=cg;bSG+=sg;bIV+=r2(tv+ig+cg+sg);});
+  let cTV=0,cIG=0,cCG=0,cSG=0;b2cRows.forEach(r=>{cTV+=n(r["TAXABLE VALUE"]);cIG+=n(r["IGST"]);cCG+=n(r["CGST"]);cSG+=n(r["SGST"]);});
+  wsS.mergeCells('A1:G1');wsS.getCell('A1').value=`SELLER GSTIN: ${gstin}`;wsS.getCell('A1').font={bold:true,size:14,color:{argb:'1B6B4A'}};
+  wsS.mergeCells('A3:G3');wsS.getCell('A3').value=`GSTR-1 SUMMARY FOR ${m}`;wsS.getCell('A3').font={bold:true,size:11};
+  const shdr=wsS.getRow(5);['Particulars','Taxable Value','Rate','IGST','CGST','SGST','Invoice Value'].forEach((v,i)=>shdr.getCell(i+1).value=v);sHeaderRow(shdr,7);
+  const rB=wsS.getRow(6);rB.getCell(1).value='B2B';rB.getCell(2).value=r2(bTV);rB.getCell(4).value=r2(bIG);rB.getCell(5).value=r2(bCG);rB.getCell(6).value=r2(bSG);rB.getCell(7).value=r2(bIV);sDataRow(rB,7,false);
+  const rC=wsS.getRow(7);rC.getCell(1).value='B2C';rC.getCell(2).value=r2(cTV);rC.getCell(4).value=r2(cIG);rC.getCell(5).value=r2(cCG);rC.getCell(6).value=r2(cSG);rC.getCell(7).value=r2(cTV+cIG+cCG+cSG);sDataRow(rC,7,true);
+  const rT=wsS.getRow(8);rT.getCell(1).value='Grand Total';[2,4,5,6,7].forEach(c=>rT.getCell(c).value={formula:`B${c===2?6:c===4?6:c===5?6:c===6?6:6}+${c===2?'B7':c===4?'D7':c===5?'E7':c===6?'F7':'G7'}`});
+  sTotalRow(rT,7);
 
   return await wb.xlsx.writeBuffer();
 }
 
+/* ═════════════════════════════════════════════════════════════
+   UI LOGIC
+   ═════════════════════════════════════════════════════════════ */
 let masterRows=[],gstinMap={},generatedFiles={};
 const $=id=>document.getElementById(id);
-
 function setStep(nn){document.querySelectorAll('.step').forEach(el=>{const s=+el.dataset.step;el.classList.remove('active','done');if(s<nn)el.classList.add('done');if(s===nn)el.classList.add('active');});}
 function log(msg,cls='log-info'){const box=$('logBox');box.innerHTML+=`<div class="${cls}">› ${msg}</div>`;box.scrollTop=box.scrollHeight;}
 function reset(){masterRows=[];gstinMap={};generatedFiles={};$('uploadCard').classList.remove('hidden');$('previewCard').classList.add('hidden');$('genCard').classList.add('hidden');$('downloadCard').classList.add('hidden');$('logBox').innerHTML='';$('progressFill').style.width='0%';$('fileInput').value='';setStep(1);}
-
 const zone=$('uploadZone'),fileInput=$('fileInput');
 zone.addEventListener('click',()=>fileInput.click());
 zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('drag-over');});
 zone.addEventListener('dragleave',()=>zone.classList.remove('drag-over'));
 zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('drag-over');handleFile(e.dataTransfer.files[0]);});
 fileInput.addEventListener('change',e=>{if(e.target.files[0])handleFile(e.target.files[0]);});
-
 function handleFile(file){
   if(!file)return;
   const reader=new FileReader();
@@ -557,32 +328,28 @@ function handleFile(file){
   };
   reader.readAsArrayBuffer(file);
 }
-
 $('generateBtn').addEventListener('click',async()=>{
   $('previewCard').classList.add('hidden');$('genCard').classList.remove('hidden');setStep(3);
   const gstins=Object.keys(gstinMap);generatedFiles={};
   for(let i=0;i<gstins.length;i++){
     const g=gstins[i],pct=Math.round(((i+1)/gstins.length)*100);
-    $('progressFill').style.width=pct+'%';$('progressText').textContent=`Processing ${i+1} of ${gstins.length}...`;
+    $('progressFill').style.width=pct+'%';$('progressText').textContent=`Processing ${i+1} of ${gstins.length}…`;
     const gR=gstinMap[g],b2b=gR.filter(r=>isB2B(r)).length,b2c=gR.filter(r=>!isB2B(r)).length,cn=gR.filter(r=>isCreditNote(r)).length;
-    log(`${g} — Processing ${gR.length} entries`,'log-info');
-    try{const buf=await generateWorkbook(g,gR);const fname=`${g}_GSTR1_Workings.xlsx`;generatedFiles[g]={fname,data:buf,b2b,b2c,cn};log(`✓ ${fname} generated`,'log-ok');}
+    log(`${g} — ${gR.length} rows`,'log-info');
+    try{const buf=await generateWorkbook(g,gR);generatedFiles[g]={fname:`${g}_GSTR1_Workings.xlsx`,data:buf,b2b,b2c,cn};log(`✓ ${g} created`,'log-ok');}
     catch(err){log(`✗ Error for ${g}: ${err.message}`,'log-warn');}
     await new Promise(r=>setTimeout(r,30));
   }
-  $('progressText').textContent=`Completed Successfully`;
   setTimeout(()=>{$('genCard').classList.add('hidden');$('downloadCard').classList.remove('hidden');setStep(4);
-    $('resultsList').innerHTML=Object.entries(generatedFiles).map(([g,f])=>`<div class="result-row"><div><div style="font-weight:700; font-family:var(--mono);">${g}</div><div style="font-size:0.75rem; color:var(--text-dim);">B2B: ${f.b2b} | B2C: ${f.b2c} | CN: ${f.cn}</div></div><button class="btn btn-secondary" style="padding: 6px 14px; font-size: 0.8rem;" onclick="downloadOne('${g}')">Download</button></div>`).join('');
+    $('resultsList').innerHTML=Object.entries(generatedFiles).map(([g,f])=>`<div class="result-row"><div><div class="result-gstin">${g}</div><div class="result-meta"><span>B2B: ${f.b2b}</span><span>B2C: ${f.b2c}</span><span>CN: ${f.cn}</span></div></div><button class="btn btn-secondary btn-sm" onclick="downloadOne('${g}')">Download</button></div>`).join('');
   },600);
 });
-
-function downloadOne(g){const f=generatedFiles[g];if(!f)return;const blob=new Blob([f.data],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=f.fname;a.click();URL.revokeObjectURL(url);}
+function downloadOne(g){const f=generatedFiles[g];const blob=new Blob([f.data],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=f.fname;a.click();}
 $('downloadAllBtn').addEventListener('click',async()=>{
-  const zip=new JSZip();for(const g in generatedFiles){const f=generatedFiles[g];zip.file(f.fname,f.data);}
-  const content=await zip.generateAsync({type:'blob'});const url=URL.createObjectURL(content);const a=document.createElement('a');a.href=url;a.download='GSTR1_Workings.zip';a.click();URL.revokeObjectURL(url);
+  const zip=new JSZip();for(const g in generatedFiles){zip.file(generatedFiles[g].fname,generatedFiles[g].data);}
+  const content=await zip.generateAsync({type:'blob'});const a=document.createElement('a');a.href=URL.createObjectURL(content);a.download='GSTR1_Workings.zip';a.click();
 });
-$('resetBtn1').addEventListener('click',reset);
-$('resetBtn2').addEventListener('click',reset);
+$('resetBtn1').addEventListener('click',reset);$('resetBtn2').addEventListener('click',reset);
 </script>
 </body>
 </html>
