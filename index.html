@@ -140,7 +140,7 @@ function detectSeries(invoices){
 }
 
 /* ═════════════════════════════════════════════════════════════
-   EXCEL STYLES (ExcelJS) - UPDATED TO SUPPORT START COL
+   EXCEL STYLES (ExcelJS)
    ═════════════════════════════════════════════════════════════ */
 const C_DK='FF1B6B4A', C_LT='FFD8F3DC', C_GRAY='FFF7F6F3', C_BORDER='FFD5D0C8', C_TOTBG='FFE8F5E9';
 const thinBdr={top:{style:'thin',color:{argb:C_BORDER}},bottom:{style:'thin',color:{argb:C_BORDER}},left:{style:'thin',color:{argb:C_BORDER}},right:{style:'thin',color:{argb:C_BORDER}}};
@@ -179,7 +179,17 @@ async function generateWorkbook(gstin, allRows){
   const wb=new ExcelJS.Workbook();
   wb.creator='GSTR-1 Workings Generator';
 
-  /* ════════════ SHEET 1 — B2B (No gaps) ════════════ */
+  // Calculate Total Invoice Value per Invoice Number (to be used in B2B rows)
+  const invTotals = {};
+  allRows.forEach(r => {
+    const invNo = String(r["INVOICE NO"] || "").trim();
+    if (invNo) {
+      const rowVal = r2(n(r["TAXABLE VALUE"])) + r2(n(r["IGST"])) + r2(n(r["CGST"])) + r2(n(r["SGST"]));
+      invTotals[invNo] = r2((invTotals[invNo] || 0) + rowVal);
+    }
+  });
+
+  /* ════════════ SHEET 1 — B2B ════════════ */
   const wsB=wb.addWorksheet('B2B',{views:[{showGridLines:false}]});
   const NC=17;
   wsB.columns=[{width:22},{width:14},{width:22},{width:14},{width:16},{width:32},{width:12},{width:14},{width:16},{width:18},{width:8},{width:16},{width:12},{width:14},{width:14},{width:14},{width:10}];
@@ -191,22 +201,40 @@ async function generateWorkbook(gstin, allRows){
   const ds=5, de=ds+b2bRows.length-1;
   const vr=wsB.getRow(3);
   const uniqBuyers=new Set(b2bRows.map(r=>String(r["BUYER GSTIN"]||"").trim()).filter(x=>x));
-  vr.getCell(1).value=uniqBuyers.size;vr.getCell(3).value=b2bRows.length;
-  if(b2bRows.length>0){[5,12,14,15,16].forEach(c=>vr.getCell(c).value={formula:`SUM(${String.fromCharCode(64+c)}${ds}:${String.fromCharCode(64+c)}${de})`});}
-  else{[5,12,14,15,16].forEach(c=>vr.getCell(c).value=0);}
+  vr.getCell(1).value=uniqBuyers.size;vr.getCell(3).value=new Set(b2bRows.map(r=>String(r["INVOICE NO"]||"").trim()).filter(x=>x)).size;
+  if(b2bRows.length>0){
+    // In summary header, use manual calculation for "Total Invoice Value" to avoid double counting split lines
+    let sumTotalInvVal = 0;
+    const processedInvs = new Set();
+    b2bRows.forEach(r => {
+        const invNo = String(r["INVOICE NO"] || "").trim();
+        if(!processedInvs.has(invNo)){
+            sumTotalInvVal += invTotals[invNo];
+            processedInvs.add(invNo);
+        }
+    });
+    vr.getCell(5).value = r2(sumTotalInvVal);
+    [12,14,15,16].forEach(c=>vr.getCell(c).value={formula:`SUM(${String.fromCharCode(64+c)}${ds}:${String.fromCharCode(64+c)}${de})`});
+  } else {
+    [5,12,14,15,16].forEach(c=>vr.getCell(c).value=0);
+  }
   sValRow(vr,NC);
   const hdr=['GSTIN/UIN of Recipient','Receiver Name','Invoice Number','Invoice date','Invoice Value','Place Of Supply','Reverse Charge','Applicable % of Tax Rate','Invoice Type','E-Commerce GSTIN','Rate','Taxable Value','Cess Amount','IGST','CGST','SGST','Difference'];
   const hr=wsB.getRow(4);hdr.forEach((v,i)=>hr.getCell(i+1).value=v);sHeaderRow(hr,NC);
+  
   b2bRows.forEach((r,idx)=>{
     const row=wsB.getRow(ds+idx);
+    const invNo = String(r["INVOICE NO"] || "").trim();
     const tv=r2(n(r["TAXABLE VALUE"])),ig=r2(n(r["IGST"])),cg=r2(n(r["CGST"])),sg=r2(n(r["SGST"]));
-    row.getCell(1).value=r["BUYER GSTIN"]||"";row.getCell(3).value=r["INVOICE NO"]||"";row.getCell(4).value=fmtDate(r["INVOICE DATE"]);
-    row.getCell(5).value=r2(tv+ig+cg+sg);row.getCell(6).value=mapState(r["BILLING STATE"]);row.getCell(7).value="N";row.getCell(9).value="Regular B2B";
+    row.getCell(1).value=r["BUYER GSTIN"]||"";row.getCell(3).value=invNo;row.getCell(4).value=fmtDate(r["INVOICE DATE"]);
+    // FIX: Apply the total invoice value for all line items of the same invoice
+    row.getCell(5).value=invTotals[invNo] || r2(tv+ig+cg+sg);
+    row.getCell(6).value=mapState(r["BILLING STATE"]);row.getCell(7).value="N";row.getCell(9).value="Regular B2B";
     row.getCell(11).value=n(r["TAX RATE"]);row.getCell(12).value=tv;row.getCell(14).value=ig||"";row.getCell(15).value=cg||"";row.getCell(16).value=sg||"";
     sDataRow(row,NC,idx%2===1);row.getCell(11).numFmt='0';
   });
 
-  /* ════════════ SHEET 2 — B2C (Gap of 2 columns) ════════════ */
+  /* ════════════ SHEET 2 — B2C ════════════ */
   const wsC=wb.addWorksheet('B2C',{views:[{showGridLines:false}]});
   wsC.columns=[{width:4},{width:4},{width:34},{width:10},{width:18},{width:16},{width:16},{width:16},{width:20}];
   const b2cGrp={};
@@ -219,7 +247,7 @@ async function generateWorkbook(gstin, allRows){
   wsC.mergeCells('C1:I1');sTitle(wsC.getCell('C1'),'B2C Sales');wsC.getRow(1).height=28;
   const chdr=wsC.getRow(2);
   ['','','Place of Supply','Rate','Sum of Taxable Value','Sum of IGST','Sum of CGST','Sum of SGST','Sum of Invoice Value'].forEach((v,i)=>chdr.getCell(i+1).value=v);
-  sHeaderRow(chdr,9,3); // Start formatting from Col 3
+  sHeaderRow(chdr,9,3);
   const cds=3;
   b2cArr.forEach((g,idx)=>{
     const row=wsC.getRow(cds+idx),tv=r2(g.tv),ig=r2(g.ig),cg=r2(g.cg),sg=r2(g.sg);
@@ -231,7 +259,7 @@ async function generateWorkbook(gstin, allRows){
   else{[5,6,7,8,9].forEach(c=>cgt.getCell(c).value=0);}
   sTotalRow(cgt,9,3);
 
-  /* ════════════ SHEET 3 — HSN (Gap of 1 column) ════════════ */
+  /* ════════════ SHEET 3 — HSN ════════════ */
   const wsH=wb.addWorksheet('HSN',{views:[{showGridLines:false}]});
   wsH.columns=[{width:4},{width:18},{width:10},{width:16},{width:24},{width:16},{width:16},{width:16}];
   const processHSN=(rows)=>{
@@ -258,7 +286,7 @@ async function generateWorkbook(gstin, allRows){
     sTotalRow(sub,8,2);hR+=2;
   });
 
-  /* ════════════ SHEET 4 — Docs (Gap of 1 column) ════════════ */
+  /* ════════════ SHEET 4 — Docs ════════════ */
   const wsD=wb.addWorksheet('Docs Issued',{views:[{showGridLines:false}]});
   wsD.columns=[{width:4},{width:8},{width:26},{width:26},{width:24},{width:24},{width:18}];
   const dhdr=wsD.getRow(1);['','Sl. No.','Source','Particulars','Doc From','Doc To','No. of Documents'].forEach((v,i)=>dhdr.getCell(i+1).value=v);
@@ -281,7 +309,17 @@ async function generateWorkbook(gstin, allRows){
   const wsS=wb.addWorksheet('Summary',{views:[{showGridLines:false}]});
   wsS.columns=[{width:22},{width:18},{width:10},{width:16},{width:16},{width:16},{width:20}];
   const m=detectMonth(allRows);
-  let bTV=0,bIG=0,bCG=0,bSG=0,bIV=0;b2bRows.forEach(r=>{const tv=n(r["TAXABLE VALUE"]),ig=n(r["IGST"]),cg=n(r["CGST"]),sg=n(r["SGST"]);bTV+=tv;bIG+=ig;bCG+=cg;bSG+=sg;bIV+=r2(tv+ig+cg+sg);});
+  let bTV=0,bIG=0,bCG=0,bSG=0,bIV=0;
+  const processedB2BInvs = new Set();
+  b2bRows.forEach(r=>{
+    const tv=n(r["TAXABLE VALUE"]),ig=n(r["IGST"]),cg=n(r["CGST"]),sg=n(r["SGST"]);
+    bTV+=tv;bIG+=ig;bCG+=cg;bSG+=sg;
+    const invNo = String(r["INVOICE NO"] || "").trim();
+    if(!processedB2BInvs.has(invNo)){
+        bIV += invTotals[invNo];
+        processedB2BInvs.add(invNo);
+    }
+  });
   let cTV=0,cIG=0,cCG=0,cSG=0;b2cRows.forEach(r=>{cTV+=n(r["TAXABLE VALUE"]);cIG+=n(r["IGST"]);cCG+=n(r["CGST"]);cSG+=n(r["SGST"]);});
   wsS.mergeCells('A1:G1');wsS.getCell('A1').value=`SELLER GSTIN: ${gstin}`;wsS.getCell('A1').font={bold:true,size:14,color:{argb:'1B6B4A'}};
   wsS.mergeCells('A3:G3');wsS.getCell('A3').value=`GSTR-1 SUMMARY FOR ${m}`;wsS.getCell('A3').font={bold:true,size:11};
